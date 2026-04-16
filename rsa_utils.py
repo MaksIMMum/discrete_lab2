@@ -112,27 +112,45 @@ def verify_hash(message: str, expected_hash: str) -> bool:
     return compute_hash(message) == expected_hash
 
 
-def pack_message(text: str, public_key: tuple) -> str:
+def sign_hash(h: str, private_key: tuple) -> list[int]:
+    """Sign the hash by encrypting it with the private key."""
+    d, n = private_key
+    return [pow(ord(char), d, n) for char in h]
+
+
+def verify_signature(signature: list[int], public_key: tuple) -> str:
+    """Decrypt the signature using the public key back to the hash string."""
+    e, n = public_key
+    return "".join([chr(pow(c, e, n)) for c in signature])
+
+
+def pack_message(text: str, recipient_pub: tuple, sender_priv: tuple) -> str:
     """
     Compute SHA-256 hash of the text.
-    Encrypt the text with the user's public key.
-    Return a JSON string:  {"hash": ..., "data": [...]}
+    Sign the hash with the sender's private key (Digital Signature).
+    Encrypt the text with the recipient's public key.
+    Return a JSON string:  {"signature": [...], "data": [...]}
     """
     h = compute_hash(text)
-    encrypted = encrypt_message(text, public_key)
-    return json.dumps({"hash": h, "data": encrypted})
+    signature = sign_hash(h, sender_priv)
+    encrypted = encrypt_message(text, recipient_pub)
+    return json.dumps({"signature": signature, "data": encrypted})
 
 
-def unpack_message(raw: str, private_key: tuple) -> str:
+def unpack_message(raw: str, recipient_priv: tuple, sender_pub: tuple) -> str:
     """
     Parse JSON.
-    Decrypt the message.
-    Verify hash.
+    Decrypt the message using user's private key.
+    Verify the signature by decrypting it with the sender's public key.
     Return the text if hash is valid, else raise ValueError.
     """
     obj = json.loads(raw)
     encrypted = obj["data"]
-    text = decrypt_message(encrypted, private_key)
-    if not verify_hash(text, obj["hash"]):
-        raise ValueError("Message invalid?")
+    signature = obj["signature"]
+
+    text = decrypt_message(encrypted, recipient_priv)
+    h_received = verify_signature(signature, sender_pub)
+
+    if compute_hash(text) != h_received:
+        raise ValueError("Message signature invalid?")
     return text
