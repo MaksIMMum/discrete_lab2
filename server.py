@@ -52,7 +52,7 @@ class Server:
             try:
                 pub = self.client_public_keys.get(client)
                 if pub:
-                    encrypted = pack_message(msg, pub, self.private_key)
+                    encrypted = pack_message(msg, pub)
                     client.send((encrypted + "\n").encode())
                 else:
                     client.send((msg + "\n").encode())
@@ -61,7 +61,6 @@ class Server:
 
     def handle_client(self, c: socket, addr):
         buffer = ""
-        client_pub = self.client_public_keys.get(c)
         while True:
             try:
                 data = c.recv(8192)
@@ -74,8 +73,7 @@ class Server:
                     if not raw_str:
                         continue
 
-                    # decrypt with server private key, verify signature with client public key
-                    plaintext = unpack_message(raw_str, self.private_key, client_pub)
+                    plaintext = unpack_message(raw_str, self.private_key)
                     username = self.username_lookup.get(c, "unknown")
                     full_msg = f"{username}: {plaintext}"
                     print(full_msg)

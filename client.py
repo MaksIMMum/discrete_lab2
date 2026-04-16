@@ -54,8 +54,7 @@ class Client:
                     if not raw_str:
                         continue
 
-                    # decrypt with private key and verify signature with server public key
-                    text = unpack_message(raw_str, self.private_key, self.server_public_key)
+                    text = unpack_message(raw_str, self.private_key)
                     print(text)
             except ValueError as e:
                 print(f"[client] integrity error: {e}")
@@ -66,9 +65,8 @@ class Client:
     def write_handler(self):
         while True:
             message = input()
-            
-            # encrypt with server public key and sign with own private key
-            encrypted = pack_message(message, self.server_public_key, self.private_key)
+
+            encrypted = pack_message(message, self.server_public_key)
             self.s.send((encrypted + "\n").encode())
 
 
